@@ -43,7 +43,7 @@ __cxa_finalize
 __stack_chk_fail
 main
 GLIBC_2.2.5
-95b30:4632047=70;0<:40=645167<:
+I2JHYkNEYjAlOWBEMHJfNWI=
 @GCC: (Ubuntu 9.3.0-17ubuntu1~20.04) 9.3.0
 `.trim();
 
@@ -56,7 +56,7 @@ GLIBC_2.2.5
   400535:    00 00
   400537:    48 89 45 f8              mov    %rax,-0x8(%rbp)
   40053b:    31 c0                    xor    %eax,%eax
-  40053d:    48 8d 3d a0 00 00 00     lea    R3v3rs3_Th1s_C0d3
+  40053d:    48 8d 3d a0 00 00 00     lea    I2JHYkNEYjAlOWBEMHJfNWI=
   400544:    e8 d7 fe ff ff           callq  400420 <strcmp@plt>
   400549:    85 c0                    test   %eax,%eax
   40054b:    74 05                    je     400552 <main+0x2c>
@@ -95,8 +95,10 @@ Hemos detectado actividad anómala y necesitamos tu ayuda.`,
             if (!fileName) return "Uso: cat <file>";
             const dir = fileSystem[state.cwd];
             if (dir && dir[fileName] !== undefined) {
-                // No decodificamos, mostramos el contenido tal cual
-                return `cat: ${fileName}: Binary file cannot be displayed`;
+                if (fileName === 'access.log') {
+                    return `cat: ${fileName}: Binary file cannot be displayed`;
+                }
+                return dir[fileName];
             }
             return `cat: ${fileName}: No such file or directory`;
         },
@@ -105,8 +107,10 @@ Hemos detectado actividad anómala y necesitamos tu ayuda.`,
             if (!fileName) return "Uso: less <file>";
             const dir = fileSystem[state.cwd];
             if (dir && dir[fileName] !== undefined) {
-                // No decodificamos, mostramos el contenido tal cual
-                return `less: ${fileName}: Binary file cannot be displayed`;
+                if (fileName === 'access.log') {
+                    return `less: ${fileName}: Binary file cannot be displayed`;
+                }
+                return dir[fileName];
             }
             return `less: ${fileName}: No such file or directory`;
         },
@@ -137,18 +141,20 @@ Hemos detectado actividad anómala y necesitamos tu ayuda.`,
             }
             const fileContent = dir[fileName];
             
-            // Si el patrón de búsqueda es la clave, decodificamos el archivo
-            if (pattern === 'R3v3rs3_Th1s_C0d3') {
-                const decodedContent = atob(fileContent);
-                // Busca la bandera dentro del contenido decodificado
-                const lines = decodedContent.split('\n');
-                const matches = lines.filter(line => line.includes('CTF{'));
-                return matches.join('\n');
+            if (fileName === 'access.log') {
+                if (pattern === 'R3v3rs3_Th1s_C0d3') {
+                    const decodedContent = atob(fileContent);
+                    const lines = decodedContent.split('\n');
+                    const matches = lines.filter(line => line.includes('CTF{'));
+                    return matches.join('\n');
+                }
+                return `grep: La entrada es un archivo binario.`;
             }
 
-            // Para cualquier otro patrón, no se mostrará nada o se dará un mensaje genérico.
-            // Para el propósito de este CTF, el grep normal fallará
-            return `grep: La entrada es un archivo binario.`;
+            // Lógica normal de grep para otros archivos de texto
+            const lines = fileContent.split('\n');
+            const matches = lines.filter(line => line.includes(pattern));
+            return matches.join('\n');
         },
         awk: (args) => {
             if (args.length !== 2) return "Uso: awk '<script>' <file>";
@@ -158,7 +164,11 @@ Hemos detectado actividad anómala y necesitamos tu ayuda.`,
                 return `awk: can't open file ${fileName}\n source line number 1`;
             }
             
-            // Simulación muy básica para '/pattern/ {print $N}'
+            if (fileName === 'access.log') {
+                return `awk: can't open file ${fileName}\n source line number 1`;
+            }
+
+            // Simulación muy básica para '/pattern/ {print $N}' en archivos de texto
             const scriptMatch = script.match(/^\/'(.*)'\s*{\s*print\s*\$(\d+)\s*}$/);
             if (!scriptMatch) return `awk: syntax error at source line 1\n context is\n\t>>> ${script} <<<\n`;
             
@@ -166,9 +176,15 @@ Hemos detectado actividad anómala y necesitamos tu ayuda.`,
             const colIndex = parseInt(col, 10) - 1;
             
             const fileContent = dir[fileName];
-            // No se decodifica, así que el awk normal no funcionará.
+            const lines = fileContent.split('\n');
+            const matches = lines.filter(line => line.includes(pattern));
             
-            return `awk: can't open file ${fileName}\n source line number 1`;
+            const result = matches.map(line => {
+                const columns = line.match(/(?:[^\s"]+|"[^"]*")+/g) || [];
+                return columns[colIndex] ? columns[colIndex].replace(/"/g, '') : '';
+            });
+
+            return result.join('\n');
         },
         clear: () => {
             output.innerHTML = '';
@@ -177,14 +193,12 @@ Hemos detectado actividad anómala y necesitamos tu ayuda.`,
     };
     
     function parseCommand(str) {
-        // Expresión regular para separar argumentos, respetando comillas simples y dobles.
         return str.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) || [];
     }
 
     function processCommand(fullCmd) {
         if (!fullCmd.trim()) return;
         
-        // Usar el nuevo parser de comandos
         const cleanedArgs = parseCommand(fullCmd.trim()).map(arg => arg.replace(/^['"]|['"]$/g, ""));
         const [command, ...args] = cleanedArgs;
 

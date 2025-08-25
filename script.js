@@ -14,7 +14,8 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // --- NUEVO SISTEMA DE ARCHIVOS Y CONTENIDOS ---
 
-    const accessLogContent = `
+    // Contenido original de access.log
+    const originalAccessLogContent = `
 127.0.0.1 - - [25/Aug/2025:16:10:01 +0200] "GET /login.php HTTP/1.1" 200 1572
 8.8.8.8 - frank [25/Aug/2025:16:10:05 +0200] "GET /index.html HTTP/1.1" 200 3054
 192.168.1.101 - - [25/Aug/2025:16:11:23 +0200] "GET /styles/main.css HTTP/1.1" 200 8824
@@ -31,6 +32,9 @@ document.addEventListener('DOMContentLoaded', () => {
 10.0.0.6 - alice [25/Aug/2025:16:19:00 +0200] "POST /api/v2/update HTTP/1.1" 200 55
 `.trim();
 
+    // Contenido encriptado de access.log (en Base64)
+    const accessLogContent = btoa(originalAccessLogContent);
+
     const stringsCrackme = `
 /lib64/ld-linux-x86-64.so.2
 libc.so.6
@@ -45,20 +49,20 @@ GLIBC_2.2.5
 
     const objdumpCrackme = `
 0000000000400526 <main>:
-  400526:   55                      push   %rbp
-  400527:   48 89 e5                mov    %rsp,%rbp
-  40052a:   48 83 ec 10             sub    $0x10,%rsp
-  40052e:   64 48 8b 04 25 28 00    mov    %fs:0x28,%rax
-  400535:   00 00
-  400537:   48 89 45 f8             mov    %rax,-0x8(%rbp)
-  40053b:   31 c0                   xor    %eax,%eax
-  40053d:   48 8d 3d a0 00 00 00    lea    I2JHYkNEYjAlOWBEMHJfNWI=
-  400544:   e8 d7 fe ff ff          callq  400420 <strcmp@plt>
-  400549:   85 c0                   test   %eax,%eax
-  40054b:   74 05                   je     400552 <main+0x2c>
-  40054d:   bf 01 00 00 00          mov    $0x1,%edi
-  400552:   b8 00 00 00 00          mov    $0x0,%eax
-  ...
+  400526:    55                       push   %rbp
+  400527:    48 89 e5                 mov    %rsp,%rbp
+  40052a:    48 83 ec 10              sub    $0x10,%rsp
+  40052e:    64 48 8b 04 25 28 00     mov    %fs:0x28,%rax
+  400535:    00 00
+  400537:    48 89 45 f8              mov    %rax,-0x8(%rbp)
+  40053b:    31 c0                    xor    %eax,%eax
+  40053d:    48 8d 3d a0 00 00 00     lea    R3v3rs3_Th1s_C0d3
+  400544:    e8 d7 fe ff ff           callq  400420 <strcmp@plt>
+  400549:    85 c0                    test   %eax,%eax
+  40054b:    74 05                    je     400552 <main+0x2c>
+  40054d:    bf 01 00 00 00           mov    $0x1,%edi
+  400552:    b8 00 00 00 00           mov    $0x0,%eax
+    ...
 `.trim();
 
     const fileSystem = {
@@ -91,7 +95,8 @@ Hemos detectado actividad anómala y necesitamos tu ayuda.`,
             if (!fileName) return "Uso: cat <file>";
             const dir = fileSystem[state.cwd];
             if (dir && dir[fileName] !== undefined) {
-                return dir[fileName];
+                // No decodificamos, mostramos el contenido tal cual
+                return `cat: ${fileName}: Binary file cannot be displayed`;
             }
             return `cat: ${fileName}: No such file or directory`;
         },
@@ -100,7 +105,8 @@ Hemos detectado actividad anómala y necesitamos tu ayuda.`,
             if (!fileName) return "Uso: less <file>";
             const dir = fileSystem[state.cwd];
             if (dir && dir[fileName] !== undefined) {
-                return dir[fileName];
+                // No decodificamos, mostramos el contenido tal cual
+                return `less: ${fileName}: Binary file cannot be displayed`;
             }
             return `less: ${fileName}: No such file or directory`;
         },
@@ -130,9 +136,19 @@ Hemos detectado actividad anómala y necesitamos tu ayuda.`,
                 return `grep: ${fileName}: No such file or directory`;
             }
             const fileContent = dir[fileName];
-            const lines = fileContent.split('\n');
-            const matches = lines.filter(line => line.includes(pattern));
-            return matches.join('\n');
+            
+            // Si el patrón de búsqueda es la clave, decodificamos el archivo
+            if (pattern === 'R3v3rs3_Th1s_C0d3') {
+                const decodedContent = atob(fileContent);
+                // Busca la bandera dentro del contenido decodificado
+                const lines = decodedContent.split('\n');
+                const matches = lines.filter(line => line.includes('CTF{'));
+                return matches.join('\n');
+            }
+
+            // Para cualquier otro patrón, no se mostrará nada o se dará un mensaje genérico.
+            // Para el propósito de este CTF, el grep normal fallará
+            return `grep: La entrada es un archivo binario.`;
         },
         awk: (args) => {
             if (args.length !== 2) return "Uso: awk '<script>' <file>";
@@ -150,15 +166,9 @@ Hemos detectado actividad anómala y necesitamos tu ayuda.`,
             const colIndex = parseInt(col, 10) - 1;
             
             const fileContent = dir[fileName];
-            const lines = fileContent.split('\n');
-            const matches = lines.filter(line => line.includes(pattern));
+            // No se decodifica, así que el awk normal no funcionará.
             
-            const result = matches.map(line => {
-                const columns = line.match(/(?:[^\s"]+|"[^"]*")+/g) || [];
-                return columns[colIndex] ? columns[colIndex].replace(/"/g, '') : '';
-            });
-
-            return result.join('\n');
+            return `awk: can't open file ${fileName}\n source line number 1`;
         },
         clear: () => {
             output.innerHTML = '';
